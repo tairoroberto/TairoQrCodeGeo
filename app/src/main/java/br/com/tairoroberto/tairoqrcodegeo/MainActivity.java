@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private boolean gpsVerify() {
         LocationManager service = (LocationManager) getSystemService(LOCATION_SERVICE);
         if(!service.isProviderEnabled(LocationManager.GPS_PROVIDER )) {
-            Toast.makeText(MainActivity.this, "Habilite o GPS!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Habilite o GPS para uma localização mais precisa!", Toast.LENGTH_SHORT).show();
         }
         return true;
     }
