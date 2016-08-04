@@ -10,13 +10,13 @@ public class Registro implements Parcelable {
     private long id;
     private String content;
     private String type;
-    private String latitude;
-    private String longitude;
+    private double latitude;
+    private double longitude;
 
     public Registro() {
     }
 
-    public Registro(long id, String content, String type, String latitude, String longitude) {
+    public Registro(long id, String content, String type, double latitude, double longitude) {
         this.id = id;
         this.content = content;
         this.type = type;
@@ -28,8 +28,17 @@ public class Registro implements Parcelable {
         id = in.readLong();
         content = in.readString();
         type = in.readString();
-        latitude = in.readString();
-        longitude = in.readString();
+        latitude = in.readDouble();
+        longitude = in.readDouble();
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeLong(id);
+        dest.writeString(content);
+        dest.writeString(type);
+        dest.writeDouble(latitude);
+        dest.writeDouble(longitude);
     }
 
     public long getId() {
@@ -56,20 +65,25 @@ public class Registro implements Parcelable {
         this.type = type;
     }
 
-    public String getLatitude() {
+    public double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(String latitude) {
+    public void setLatitude(double latitude) {
         this.latitude = latitude;
     }
 
-    public String getLongitude() {
+    public double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(String longitude) {
+    public void setLongitude(double longitude) {
         this.longitude = longitude;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
     }
 
     public static final Creator<Registro> CREATOR = new Creator<Registro>() {
@@ -83,18 +97,4 @@ public class Registro implements Parcelable {
             return new Registro[size];
         }
     };
-
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeLong(id);
-        dest.writeString(content);
-        dest.writeString(type);
-        dest.writeString(latitude);
-        dest.writeString(longitude);
-    }
 }

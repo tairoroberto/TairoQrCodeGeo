@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Environment;
 import android.preference.PreferenceManager;
@@ -19,22 +20,29 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.URLUtil;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
 
 import java.io.File;
-import java.util.Calendar;
+import java.io.FileOutputStream;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import br.com.tairoroberto.tairoqrcodegeo.MapsActivity;
 import br.com.tairoroberto.tairoqrcodegeo.R;
 import br.com.tairoroberto.tairoqrcodegeo.database.RegistroDAO;
 import br.com.tairoroberto.tairoqrcodegeo.domain.Registro;
 import br.com.tairoroberto.tairoqrcodegeo.interfaces.RecyclerViewOnClickListenerHack;
 
 
-public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHolder> implements PreferenceManager.OnActivityResultListener{
+public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHolder> {
     private Context mContext;
     private List<Registro> mList;
     private LayoutInflater mLayoutInflater;
@@ -52,10 +60,9 @@ public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHo
     private String segundo;
     private Date dataRegistro;
     private FragmentManager fragmentManager;
-    private Registro registro;
     private RegistroDAO registroDAO;
     private ImageView img_registro;
-    Activity activity;
+    private Activity activity;
 
 
     public RegistroAdapter(Context context, List<Registro> list, FragmentManager fragmentManager){
@@ -81,21 +88,42 @@ public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHo
     public void onBindViewHolder(final ViewHolder myViewHolder, final int position) {
 
         /** Separa a string "-" da data e coloca no textView */
-        registro = mList.get(position);
-        myViewHolder.txtQrcode.setText(registro.getContent());
+        final Registro[] registro = {mList.get(position)};
+        myViewHolder.txtQrcode.setText(registro[0].getContent());
+
+        myViewHolder.txtQrcode.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String regex = "http(s?)://([\\w-]+\\.)+[\\w-]+(/[\\w- ./]*)+\\.(?:[gG][iI][fF]|[jJ][pP][gG]|[jJ][pP][eE][gG]|[pP][nN][gG]|[bB][mM][pP])";
+
+                Matcher m = Pattern.compile(regex).matcher(registro[0].getContent());
+
+                if (m.find()){
+                    saveImage(registro[0]);
+                }else {
+                    if (URLUtil.isValidUrl(registro[0].getContent())){
+                        Intent intent = new Intent(android.content.Intent.ACTION_VIEW, Uri.parse(registro[0].getContent()));
+                        mContext.startActivity(intent);
+                    }else {
+                        Toast.makeText(mContext, registro[0].getContent(), Toast.LENGTH_SHORT).show();
+                    }
+
+                }
+            }
+        });
 
 
         /** Implementação do botão de deletar */
         myViewHolder.imgDeletar.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                registro = mList.get(myViewHolder.getAdapterPosition());
+                registro[0] = mList.get(myViewHolder.getAdapterPosition());
                 AlertDialog.Builder dialog = new AlertDialog.Builder(mContext, R.style.AlertDialog);
                 dialog.setTitle("Deseja relmente excluir?");
                 dialog.setPositiveButton("Sim", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        registroDAO.delete(registro);
+                        registroDAO.delete(registro[0]);
                         removeListItem(myViewHolder.getAdapterPosition());
                     }
                 });
@@ -114,27 +142,10 @@ public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHo
         myViewHolder.imgMaps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String path = "";
-
-                Intent intent = new Intent("android.media.action.IMAGE_CAPTURE");
-                File folder = new File(Environment.getExternalStorageDirectory() + "/Worktime/img");
-
-                if (!folder.exists()) {
-                    folder.mkdir();
-                }
-                final Calendar c = Calendar.getInstance();
-                String new_Date = c.get(Calendar.DAY_OF_MONTH) + "-"
-                        + ((c.get(Calendar.MONTH)) + 1) + "-"
-                        + c.get(Calendar.YEAR) + " " + c.get(Calendar.HOUR)
-                        + "-" + c.get(Calendar.MINUTE) + "-"
-                        + c.get(Calendar.SECOND);
-
-                path = String.format(Environment.getExternalStorageDirectory() + "/Worktime/img/%s.png", "LoadImg(" + new_Date + ")");
-                File photo = new File(path);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photo));
-
-                // start the image capture Intent
-                activity.startActivityForResult(intent, CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE);
+                Intent intent = new Intent(mContext, MapsActivity.class);
+                intent.putExtra("latitude", registro[0].getLatitude());
+                intent.putExtra("longitude", registro[0].getLongitude());
+                mContext.startActivity(intent);
             }
         });
     }
@@ -158,52 +169,6 @@ public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHo
         notifyItemRemoved(position);
     }
 
-    @Override
-    public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == Activity.RESULT_OK && requestCode == CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE) {
-            this.imageFromGallery(resultCode, data);
-
-            img_registro.setImageBitmap(null);
-
-            img_registro.setImageBitmap(setphoto);
-        }
-        return false;
-    }
-
-    private void imageFromGallery(int resultCode, Intent data) {
-        Uri selectedImage = data.getData();
-        String[] filePathColumn = { MediaStore.Images.Media.DATA };
-
-        Cursor cursor = activity.getContentResolver().query(selectedImage,
-                filePathColumn, null, null, null);
-        cursor.moveToFirst();
-
-        int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-
-        String profile_Path = cursor.getString(columnIndex);
-        cursor.close();
-
-        setphoto = BitmapFactory.decodeFile(profile_Path);
-
-    }
-
-    private void imageFromCamera(int resultCode, Intent data) {
-        updateImageView((Bitmap) data.getExtras().get("data"));
-    }
-
-    private void updateImageView(Bitmap newImage) {
-        setphoto = newImage.copy(Bitmap.Config.ARGB_8888, true);
-    }
-
-    public String getPath(Uri uri) {
-        String[] projection = { MediaStore.Images.Media.DATA };
-        CursorLoader cursorLoader = new CursorLoader(mContext, uri, projection, null, null, null);
-        Cursor cursor = cursorLoader.loadInBackground();
-        int column_index = cursor
-                .getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
-        cursor.moveToFirst();
-        return cursor.getString(column_index);
-    }
 
     public static class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         public ImageView imgMaps;
@@ -226,6 +191,39 @@ public class RegistroAdapter extends RecyclerView.Adapter<RegistroAdapter.ViewHo
                 mRecyclerViewOnClickListenerHack.onClickListener(v, getAdapterPosition());
             }
         }
+    }
+
+    public void saveImage(final Registro registro){
+
+        String ext = registro.getContent().substring(registro.getContent().lastIndexOf('.') + 1);
+        final String path = Environment.getExternalStorageDirectory().getPath()
+                + "/Pictures/img_"+ registro.getId()+"." + ext;
+
+        Target mTarget = new Target() {
+            @Override
+            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+                File file = new File(path);
+                try {
+                    file.createNewFile();
+                    FileOutputStream ostream = new FileOutputStream(file);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG,100,ostream);
+                    ostream.close();
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onBitmapFailed(Drawable errorDrawable) {
+            }
+
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) {
+            }
+        };
+        Picasso.with(mContext).load(registro.getContent()).into(mTarget);
+        Toast.makeText(mContext, "Imagem salva no caminho: /Pictures/img_"+ registro.getId()+"." + ext , Toast.LENGTH_SHORT).show();
     }
 
 }

@@ -1,6 +1,8 @@
 package br.com.tairoroberto.tairoqrcodegeo;
 
+import android.app.Dialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -12,6 +14,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -23,6 +26,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -51,6 +57,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private LocationRequest locationRequest;
     private double latitude;
     private double longitude;
+
+    /**
+      keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+     * */
 
     private RecyclerView mRecyclerView;
     private SwipeRefreshLayout mSwipeRefreshLayout;
@@ -85,7 +95,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             }
         });
 
-        /** Atualiza a lista de registros */
+        /** Atualiza a lista de registros quando puchar o swipe */
         mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.srl_swipe);
         mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
@@ -120,6 +130,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 public void onClick(View view) {
 
                     if (gpsVerify()) {
+                        callConnection();
                         Intent intent = new Intent(getApplicationContext(),CaptureActivity.class);
                         intent.setAction("com.google.zxing.client.android.SCAN");
                         intent.putExtra("PROMPT_MESSAGE", "Leia um QRCODE");
@@ -135,27 +146,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         LocationManager service = (LocationManager) getSystemService(LOCATION_SERVICE);
         if(!service.isProviderEnabled(LocationManager.GPS_PROVIDER )) {
             Toast.makeText(MainActivity.this, "Habilite o GPS!", Toast.LENGTH_SHORT).show();
-            return false;
         }
         return true;
     }
-
-
-    @Override
-    protected void onStart() {
-        callConnection();
-        super.onStart();
-    }
-
-    @Override
-    public void onResume(){
-        super.onResume();
-
-        if(googleApiClient !=null && googleApiClient.isConnected()){
-            startLocationUpdate();
-        }
-    }
-
 
     @Override
     public void onPause(){
@@ -164,18 +157,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         if(googleApiClient != null){
             stopLocationUpdate();
         }
+        super.onPause();
     }
-
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-        /* Pega o resultado para a verificação do GPS */
-        if (resultCode == ENABLED_GPS) {
-            callConnection();
-
         /* Pega o resultado para a verificação do QRCODE */
-        } if (requestCode == BARCODE_SCANNER) {
+        if (requestCode == BARCODE_SCANNER) {
             if (resultCode == RESULT_OK) {
                 String content = data.getStringExtra("SCAN_RESULT");
 
@@ -185,13 +174,14 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                 RegistroDAO registroDAO = new RegistroDAO(MainActivity.this);
 
                 registro.setContent(content);
-                registro.setLatitude(""+latitude);
-                registro.setLongitude(""+longitude);
+                registro.setLatitude(latitude);
+                registro.setLongitude(longitude);
                 registro.setType("img");
                 registroDAO.insert(registro);
 
                 registros.add(registro);
                 mRecyclerView.getAdapter().notifyDataSetChanged();
+                stopLocationUpdate();
 
             } else if (resultCode == RESULT_CANCELED) {
                 Log.i(TAG, "Scanner cancelado");
@@ -218,6 +208,25 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+
+            final Dialog dialog = new Dialog(MainActivity.this); // Context, this, etc.
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            dialog.setContentView(R.layout.info_alert_dialog);
+            dialog.show();
+
+            Button btOK = (Button) dialog.findViewById(R.id.dialog_ok);
+            final TextView textView = (TextView) dialog.findViewById(R.id.dialog_info);
+            textView.setText(Html.fromHtml("<h1>Tairo Roberto Miguel De Assunção</h1>" +
+                    "<br><b>Fone: </b>(11)95297-9157" +
+                    "<br><b>Email: </b>tairoroberto@hotmail.com" +
+                    "<br><b>Github: </b>https://github.com/tairoroberto "));
+
+            btOK.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    dialog.dismiss();
+                }
+            });
             return true;
         }
 
@@ -247,7 +256,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
     /* Para o serviço de atualização de coordenadas */
     private void stopLocationUpdate(){
-        LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+        if (googleApiClient.isConnected()){
+            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+        }
     }
 
     /* Inicializa o googleApiClient */
@@ -301,9 +312,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         Log.i(TAG, "longitude: " + longitude);
     }
 
+
     @Override
     public void onClickListener(View view, int position) {
-        Toast.makeText(MainActivity.this, "Posição: " + position, Toast.LENGTH_SHORT).show();
+        //Toast.makeText(MainActivity.this, "Posição: " + position, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -313,6 +325,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
 
 
 
+    /** Classe para click em recyclerview */
     private static class RecyclerViewTouchListener implements RecyclerView.OnItemTouchListener {
         private Context mContext;
         private GestureDetector mGestureDetector;

@@ -76,8 +76,8 @@ public class RegistroDAO {
                     registro.setId(cursor.getLong(0));
                     registro.setContent(cursor.getString(1));
                     registro.setType(cursor.getString(2));
-                    registro.setLatitude(cursor.getString(3));
-                    registro.setLongitude(cursor.getString(4));
+                    registro.setLatitude(Double.parseDouble(cursor.getString(3)));
+                    registro.setLongitude(Double.parseDouble(cursor.getString(4)));
 
 
                     list.add(registro);
@@ -108,8 +108,8 @@ public class RegistroDAO {
                 registro.setId(cursor.getLong(0));
                 registro.setContent(cursor.getString(1));
                 registro.setType(cursor.getString(2));
-                registro.setLatitude(cursor.getString(3));
-                registro.setLongitude(cursor.getString(4));
+                registro.setLatitude(Double.parseDouble(cursor.getString(3)));
+                registro.setLongitude(Double.parseDouble(cursor.getString(4)));
 
                 return registro;
             } else {
