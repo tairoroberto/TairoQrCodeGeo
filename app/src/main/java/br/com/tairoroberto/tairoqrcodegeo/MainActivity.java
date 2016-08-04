@@ -151,6 +151,12 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     @Override
+    protected void onStart() {
+        callConnection();
+        super.onStart();
+    }
+
+    @Override
     public void onPause(){
         super.onPause();
 
