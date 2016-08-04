@@ -37,6 +37,18 @@
             android:layout_height="wrap_content"
             android:gravity="center_horizontal"
             android:text="@string/welcome" />
+
+        <android.support.v4.widget.SwipeRefreshLayout
+            android:id="@+id/srl_swipe"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/rv_list"
+                android:scrollbars="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+        </android.support.v4.widget.SwipeRefreshLayout>
+
     </RelativeLayout>
 
     <android.support.design.widget.FloatingActionButton
